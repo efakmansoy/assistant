@@ -7,35 +7,35 @@ Flask-SocketIO==5.3.6
 SQLAlchemy==2.0.21
 
 # LLM ve RAG bağımlılıkları
-llama-index==0.8.69
-google-generativeai==0.3.1
-chromadb==0.4.15
+llama-index
+google-generativeai
+chromadb
 
 # PDF işleme
-unstructured[pdf]==0.10.30
-PyMuPDF==1.23.8
-pymupdf4llm==0.0.5
+unstructured[pdf]
+PyMuPDF
+pymupdf4llm
 
 # Veri işleme ve yardımcı kütüphaneler
-numpy==1.24.3
-pandas==2.0.3
-python-dotenv==1.0.0
+numpy
+pandas
+python-dotenv
 
 # Web geliştirme yardımcıları
-Werkzeug==2.3.7
-Jinja2==3.1.2
+Werkzeug
+Jinja2
 
 # Dosya yükleme ve işleme
 python-multipart==0.0.6
 Pillow==10.0.1
 
 # Güvenlik
-cryptography==41.0.7
+cryptography
 
 # Socket.IO için
-python-socketio==5.9.0
-eventlet==0.33.3
+python-socketio
+eventlet
 
 # Diğer yardımcı paketler
-requests==2.31.0
-python-dateutil==2.8.2
+requests
+python-dateutil
