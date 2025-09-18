@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}Projelerim - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-project-diagram me-2"></i>
+                        {% if current_user.is_student() %}
+                            Projelerim
+                        {% elif current_user.is_advisor() %}
+                            Proje Yönetimi
+                        {% else %}
+                            Tüm Projeler
+                        {% endif %}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {% if current_user.is_student() %}
+                            Kendi projelerinizi yönetin ve ilerleyişinizi takip edin.
+                        {% elif current_user.is_advisor() %}
+                            Danışmanlık yaptığınız ve kendi projelerinizi yönetin.
+                        {% else %}
+                            Sistemdeki tüm projeleri görüntüleyin ve yönetin.
+                        {% endif %}
+                    </p>
+                </div>
+                {% if not current_user.is_admin() %}
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+                    <i class="fas fa-plus me-2"></i>Yeni Proje
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Durum Filtresi</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">Tüm Durumlar</option>
+                                <option value="planning">Planlama</option>
+                                <option value="development">Geliştirme</option>
+                                <option value="testing">Test</option>
+                                <option value="completed">Tamamlandı</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kategori Filtresi</label>
+                            <select class="form-select" id="categoryFilter">
+                                <option value="">Tüm Kategoriler</option>
+                                <option value="web">Web Geliştirme</option>
+                                <option value="mobile">Mobil Uygulama</option>
+                                <option value="ai">Yapay Zeka</option>
+                                <option value="iot">IoT/Gömülü</option>
+                                <option value="game">Oyun Geliştirme</option>
+                                <option value="other">Diğer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Arama</label>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Proje adı ara...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-pie text-primary me-2"></i>Proje İstatistikleri
+                    </h5>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="h4 text-primary mb-0" id="totalProjects">{{ projects|length }}</div>
+                            <small class="text-muted">Toplam</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="h4 text-success mb-0" id="completedProjects">
+                                {{ projects|selectattr('status', 'equalto', 'completed')|list|length }}
+                            </div>
+                            <small class="text-muted">Tamamlandı</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Grid -->
+    <div class="row" id="projectsGrid">
+        {% if projects %}
+            {% for project in projects %}
+            <div class="col-lg-6 col-xl-4 mb-4 project-item" 
+                 data-status="{{ project.status }}" 
+                 data-category="{{ project.category or '' }}"
+                 data-title="{{ project.title.lower() }}">
+                <div class="card h-100 project-card border-start border-4 border-{{ 'success' if project.status == 'completed' 
+                            else 'warning' if project.status == 'development' 
+                            else 'info' if project.status == 'testing' 
+                            else 'secondary' }}">
+                    <div class="card-body d-flex flex-column">
+                        <!-- Project Header -->
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">{{ project.title }}</h5>
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>{{ project.owner.get_full_name() }}
+                                    {% if project.advisor %}
+                                        | <i class="fas fa-user-tie me-1"></i>{{ project.advisor.get_full_name() }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-link btn-sm" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('main.project_detail', project_id=project.id) }}">
+                                            <i class="fas fa-eye me-2"></i>Görüntüle
+                                        </a>
+                                    </li>
+                                    {% if current_user.id == project.owner_id or current_user.is_admin() %}
+                                    <li>
+                                        <a class="dropdown-item" href="javascript:void(0)" onclick="editProject({{ project.id }})">
+                                            <i class="fas fa-edit me-2"></i>Düzenle
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item text-danger" href="javascript:void(0)" onclick="deleteProject({{ project.id }})">
+                                            <i class="fas fa-trash me-2"></i>Sil
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Status and Category -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-{{ 'success' if project.status == 'completed' 
+                                        else 'warning' if project.status == 'development' 
+                                        else 'info' if project.status == 'testing' 
+                                        else 'secondary' }}">
+                                {{ project.get_status_display() }}
+                            </span>
+                            {% if project.category %}
+                            <span class="badge bg-light text-dark">
+                                {% if project.category == 'web' %}
+                                    <i class="fas fa-globe me-1"></i>Web
+                                {% elif project.category == 'mobile' %}
+                                    <i class="fas fa-mobile-alt me-1"></i>Mobil
+                                {% elif project.category == 'ai' %}
+                                    <i class="fas fa-brain me-1"></i>AI
+                                {% elif project.category == 'iot' %}
+                                    <i class="fas fa-microchip me-1"></i>IoT
+                                {% elif project.category == 'game' %}
+                                    <i class="fas fa-gamepad me-1"></i>Oyun
+                                {% else %}
+                                    <i class="fas fa-code me-1"></i>Diğer
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <p class="card-text text-muted small flex-grow-1 mb-3">
+                            {{ project.description[:120] if project.description else 'Açıklama yok' }}
+                            {% if project.description and project.description|length > 120 %}...{% endif %}
+                        </p>
+
+                        <!-- Progress -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted">İlerleme</small>
+                                <small class="fw-bold">{{ project.get_progress_percentage() }}%</small>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-{{ 'success' if project.status == 'completed' 
+                                            else 'warning' if project.status == 'development' 
+                                            else 'info' if project.status == 'testing' 
+                                            else 'secondary' }}" 
+                                     role="progressbar" 
+                                     style="width: {{ project.get_progress_percentage() }}%" 
+                                     aria-valuenow="{{ project.get_progress_percentage() }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Competition Info -->
+                        {% if project.competition %}
+                        <div class="mb-3">
+                            <small class="text-warning">
+                                <i class="fas fa-trophy me-1"></i>{{ project.competition.name }}
+                            </small>
+                        </div>
+                        {% endif %}
+
+                        <!-- Footer -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ project.updated_at.strftime('%d.%m.%Y') }}
+                            </small>
+                            <div>
+                                {% if project.github_url %}
+                                <a href="{{ project.github_url }}" target="_blank" class="btn btn-outline-dark btn-sm me-1">
+                                    <i class="fab fa-github"></i>
+                                </a>
+                                {% endif %}
+                                {% if project.demo_url %}
+                                <a href="{{ project.demo_url }}" target="_blank" class="btn btn-outline-primary btn-sm me-1">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-folder-open text-muted" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 text-muted">Henüz proje yok</h4>
+                    <p class="text-muted">
+                        {% if current_user.is_student() %}
+                            İlk projenizi oluşturarak başlayın!
+                        {% elif current_user.is_advisor() %}
+                            Henüz danışmanlık yaptığınız veya sahip olduğunuz proje yok.
+                        {% else %}
+                            Sistemde henüz proje oluşturulmamış.
+                        {% endif %}
+                    </p>
+                    {% if not current_user.is_admin() %}
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+                        <i class="fas fa-plus me-2"></i>İlk Projenizi Oluşturun
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New Project Modal -->
+<div class="modal fade" id="newProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Yeni Proje Oluştur
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newProjectForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="projectTitle" class="form-label">Proje Başlığı *</label>
+                            <input type="text" class="form-control" id="projectTitle" name="title" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="projectCategory" class="form-label">Kategori</label>
+                            <select class="form-select" id="projectCategory" name="category">
+                                <option value="">Kategori Seçin</option>
+                                <option value="web">Web Geliştirme</option>
+                                <option value="mobile">Mobil Uygulama</option>
+                                <option value="ai">Yapay Zeka</option>
+                                <option value="iot">IoT/Gömülü</option>
+                                <option value="game">Oyun Geliştirme</option>
+                                <option value="other">Diğer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectDescription" class="form-label">Açıklama</label>
+                        <textarea class="form-control" id="projectDescription" name="description" rows="4" 
+                                  placeholder="Projenizin amacını, kapsamını ve hedeflerini açıklayın..."></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="projectStartDate" class="form-label">Başlangıç Tarihi</label>
+                            <input type="date" class="form-control" id="projectStartDate" name="start_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="projectDeadline" class="form-label">Hedef Tamamlanma</label>
+                            <input type="date" class="form-control" id="projectDeadline" name="deadline">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="projectCompetition" class="form-label">Yarışma</label>
+                            <select class="form-select" id="projectCompetition" name="competition_id">
+                                <option value="">Yarışma Seçin (İsteğe bağlı)</option>
+                                <!-- Dinamik olarak yüklenecek -->
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="projectTechnologies" class="form-label">Teknolojiler</label>
+                            <input type="text" class="form-control" id="projectTechnologies" name="technologies" 
+                                   placeholder="React, Python, Node.js vb. (virgülle ayırın)">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="projectGithub" class="form-label">GitHub URL</label>
+                            <input type="url" class="form-control" id="projectGithub" name="github_url" 
+                                   placeholder="https://github.com/kullanici/proje">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="projectDemo" class="form-label">Demo URL</label>
+                            <input type="url" class="form-control" id="projectDemo" name="demo_url" 
+                                   placeholder="https://proje-demo.com">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Projeyi Oluştur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.project-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.project-item.hidden {
+    display: none;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const searchInput = document.getElementById('searchInput');
+    const projectItems = document.querySelectorAll('.project-item');
+
+    function filterProjects() {
+        const statusValue = statusFilter.value.toLowerCase();
+        const categoryValue = categoryFilter.value.toLowerCase();
+        const searchValue = searchInput.value.toLowerCase();
+
+        projectItems.forEach(item => {
+            const itemStatus = item.dataset.status.toLowerCase();
+            const itemCategory = item.dataset.category.toLowerCase();
+            const itemTitle = item.dataset.title.toLowerCase();
+
+            const statusMatch = !statusValue || itemStatus === statusValue;
+            const categoryMatch = !categoryValue || itemCategory === categoryValue;
+            const searchMatch = !searchValue || itemTitle.includes(searchValue);
+
+            if (statusMatch && categoryMatch && searchMatch) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        updateStatistics();
+    }
+
+    function updateStatistics() {
+        const visibleItems = document.querySelectorAll('.project-item:not(.hidden)');
+        const completedItems = Array.from(visibleItems).filter(item => 
+            item.dataset.status === 'completed'
+        );
+
+        document.getElementById('totalProjects').textContent = visibleItems.length;
+        document.getElementById('completedProjects').textContent = completedItems.length;
+    }
+
+    statusFilter.addEventListener('change', filterProjects);
+    categoryFilter.addEventListener('change', filterProjects);
+    searchInput.addEventListener('input', filterProjects);
+
+    // Load competitions for modal
+    loadCompetitions();
+});
+
+// Project management functions
+function editProject(projectId) {
+    // TODO: Implement project editing
+    ragAssistant.showToast('Proje düzenleme özelliği yakında eklenecek!', 'info');
+}
+
+function deleteProject(projectId) {
+    if (confirm('Bu projeyi silmek istediğinizden emin misiniz?')) {
+        // TODO: Implement project deletion
+        ragAssistant.showToast('Proje silme özelliği yakında eklenecek!', 'info');
+    }
+}
+
+async function loadCompetitions() {
+    try {
+        const response = await fetch('/api/competitions');
+        if (response.ok) {
+            const competitions = await response.json();
+            const select = document.getElementById('projectCompetition');
+            
+            competitions.forEach(competition => {
+                const option = document.createElement('option');
+                option.value = competition.id;
+                option.textContent = competition.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Yarışmalar yüklenirken hata:', error);
+    }
+}
+
+// New project form submission
+document.getElementById('newProjectForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const projectData = Object.fromEntries(formData.entries());
+    
+    // Technologies string'i array'e çevir
+    if (projectData.technologies) {
+        projectData.technologies = projectData.technologies.split(',').map(t => t.trim());
+    }
+    
+    try {
+        const response = await fetch('/api/projects', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(projectData)
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('newProjectModal')).hide();
+            this.reset();
+            location.reload();
+        } else {
+            const error = await response.json();
+            ragAssistant.showToast(error.message || 'Proje oluşturulurken hata oluştu!', 'error');
+        }
+    } catch (error) {
+        console.error('Proje oluşturma hatası:', error);
+        ragAssistant.showToast('Proje oluşturulurken hata oluştu!', 'error');
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

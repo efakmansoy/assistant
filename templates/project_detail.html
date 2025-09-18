@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.projects') }}">Projeler</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ project.title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h2 class="mb-2">
+                        <i class="fas fa-project-diagram me-2"></i>{{ project.title }}
+                        <span class="badge bg-{{ 'success' if project.status == 'completed' 
+                                    else 'warning' if project.status == 'development' 
+                                    else 'info' if project.status == 'testing' 
+                                    else 'secondary' }} ms-2">
+                            {{ project.get_status_display() }}
+                        </span>
+                    </h2>
+                    <div class="text-muted mb-3">
+                        <i class="fas fa-user me-1"></i>Proje Sahibi: {{ project.owner.get_full_name() }}
+                        {% if project.advisor %}
+                            | <i class="fas fa-user-tie me-1"></i>Danışman: {{ project.advisor.get_full_name() }}
+                        {% endif %}
+                        {% if project.competition %}
+                            | <i class="fas fa-trophy me-1"></i>{{ project.competition.name }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    {% if current_user.id == project.owner_id or current_user.is_admin() %}
+                    <button class="btn btn-outline-primary me-2" onclick="editProject()">
+                        <i class="fas fa-edit me-1"></i>Düzenle
+                    </button>
+                    {% endif %}
+                    {% if project.github_url %}
+                    <a href="{{ project.github_url }}" target="_blank" class="btn btn-outline-dark me-2">
+                        <i class="fab fa-github me-1"></i>GitHub
+                    </a>
+                    {% endif %}
+                    {% if project.demo_url %}
+                    <a href="{{ project.demo_url }}" target="_blank" class="btn btn-outline-success">
+                        <i class="fas fa-external-link-alt me-1"></i>Demo
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Project Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Proje Genel Bakış
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if project.description %}
+                        <p class="card-text">{{ project.description }}</p>
+                    {% else %}
+                        <p class="text-muted">Bu proje için henüz açıklama eklenmemiş.</p>
+                    {% endif %}
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">İlerleme Durumu</h6>
+                            <div class="progress mb-2" style="height: 20px;">
+                                <div class="progress-bar bg-{{ 'success' if project.status == 'completed' 
+                                            else 'warning' if project.status == 'development' 
+                                            else 'info' if project.status == 'testing' 
+                                            else 'secondary' }}" 
+                                     role="progressbar" 
+                                     style="width: {{ project.get_progress_percentage() }}%" 
+                                     aria-valuenow="{{ project.get_progress_percentage() }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ project.get_progress_percentage() }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ project.get_status_display() }} aşamasında</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Zaman Çizelgesi</h6>
+                            <div class="mb-2">
+                                <small class="text-muted">Başlangıç:</small>
+                                <span class="fw-bold">
+                                    {% if project.start_date %}
+                                        {{ project.start_date.strftime('%d.%m.%Y') }}
+                                    {% else %}
+                                        Belirtilmemiş
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div>
+                                <small class="text-muted">Hedef Tamamlanma:</small>
+                                <span class="fw-bold {% if project.deadline and project.deadline < moment().date() %}text-danger{% endif %}">
+                                    {% if project.deadline %}
+                                        {{ project.deadline.strftime('%d.%m.%Y') }}
+                                    {% else %}
+                                        Belirtilmemiş
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technologies -->
+            {% if project.technologies %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Teknolojiler
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% set tech_list = project.technologies.split(',') if project.technologies else [] %}
+                        {% for tech in tech_list %}
+                        <span class="badge bg-primary">{{ tech.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Documentation -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Dokümantasyon
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                        <i class="fas fa-upload me-1"></i>Belge Yükle
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if project.documentation_path %}
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                            <span>{{ project.documentation_path.split('/')[-1] }}</span>
+                            <a href="/uploads/{{ project.documentation_path }}" target="_blank" class="btn btn-outline-primary btn-sm ms-auto">
+                                <i class="fas fa-download me-1"></i>İndir
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            Henüz dokümantasyon yüklenmemiş. PDF dosyalarını yükleyerek AI asistandan daha iyi yardım alabilirsiniz.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Activity Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Proje Aktiviteleri
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Proje Oluşturuldu</h6>
+                                <p class="text-muted mb-1">{{ project.owner.get_full_name() }} tarafından proje oluşturuldu</p>
+                                <small class="text-muted">{{ project.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        
+                        {% if project.updated_at != project.created_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Son Güncelleme</h6>
+                                <p class="text-muted mb-1">Proje bilgileri güncellendi</p>
+                                <small class="text-muted">{{ project.updated_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Buraya gelecekte daha fazla aktivite eklenebilir -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Hızlı İşlemler
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('main.chat') }}?project={{ project.id }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-robot me-2"></i>AI Asistan ile Konuş
+                        </a>
+                        <button class="btn btn-outline-info btn-sm" onclick="updateStatus()">
+                            <i class="fas fa-edit me-2"></i>Durum Güncelle
+                        </button>
+                        {% if current_user.is_advisor() and current_user.id == project.advisor_id %}
+                        <button class="btn btn-outline-success btn-sm" onclick="provideFeedback()">
+                            <i class="fas fa-comment me-2"></i>Geri Bildirim Ver
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-outline-warning btn-sm" onclick="shareProject()">
+                            <i class="fas fa-share me-2"></i>Paylaş
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info me-2"></i>Proje Bilgileri
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <small class="text-muted">Kategori</small>
+                            <div>
+                                {% if project.category %}
+                                    <span class="badge bg-secondary">
+                                        {% if project.category == 'web' %}
+                                            <i class="fas fa-globe me-1"></i>Web Geliştirme
+                                        {% elif project.category == 'mobile' %}
+                                            <i class="fas fa-mobile-alt me-1"></i>Mobil Uygulama
+                                        {% elif project.category == 'ai' %}
+                                            <i class="fas fa-brain me-1"></i>Yapay Zeka
+                                        {% elif project.category == 'iot' %}
+                                            <i class="fas fa-microchip me-1"></i>IoT/Gömülü
+                                        {% elif project.category == 'game' %}
+                                            <i class="fas fa-gamepad me-1"></i>Oyun Geliştirme
+                                        {% else %}
+                                            <i class="fas fa-code me-1"></i>{{ project.category }}
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Belirtilmemiş</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <small class="text-muted">Oluşturulma Tarihi</small>
+                            <div>{{ project.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <small class="text-muted">Son Güncelleme</small>
+                            <div>{{ project.updated_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                        </div>
+                        
+                        {% if project.team_members %}
+                        <div class="col-12">
+                            <small class="text-muted">Takım Üyeleri</small>
+                            <div>
+                                <!-- Takım üyeleri JSON formatında saklanıyor, parse edilecek -->
+                                <span class="badge bg-light text-dark">{{ project.team_members }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Projects -->
+            {% if related_projects %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-link me-2"></i>İlgili Projeler
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for related in related_projects %}
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small">{{ related.title }}</div>
+                            <small class="text-muted">{{ related.owner.get_full_name() }}</small>
+                        </div>
+                        <a href="{{ url_for('main.project_detail', project_id=related.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal fade" id="uploadDocModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload me-2"></i>Belge Yükle
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="uploadDocForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="documentFile" class="form-label">PDF Dosyası Seçin</label>
+                        <input type="file" class="form-control" id="documentFile" name="document" 
+                               accept=".pdf" required>
+                        <div class="form-text">
+                            Sadece PDF dosyaları kabul edilir. Maksimum dosya boyutu: 10MB
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="documentDescription" class="form-label">Açıklama (İsteğe bağlı)</label>
+                        <textarea class="form-control" id="documentDescription" name="description" rows="3"
+                                  placeholder="Bu belge hakkında kısa açıklama..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>Yükle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Proje Durumu Güncelle
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="statusUpdateForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="projectStatus" class="form-label">Yeni Durum</label>
+                        <select class="form-select" id="projectStatus" name="status" required>
+                            <option value="planning" {{ 'selected' if project.status == 'planning' }}>Planlama</option>
+                            <option value="development" {{ 'selected' if project.status == 'development' }}>Geliştirme</option>
+                            <option value="testing" {{ 'selected' if project.status == 'testing' }}>Test</option>
+                            <option value="completed" {{ 'selected' if project.status == 'completed' }}>Tamamlandı</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="statusNote" class="form-label">Not (İsteğe bağlı)</label>
+                        <textarea class="form-control" id="statusNote" name="note" rows="3"
+                                  placeholder="Durum değişikliği hakkında not..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Güncelle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 17px;
+    bottom: -30px;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-content h6 {
+    color: #495057;
+}
+
+.badge {
+    font-size: 0.8rem;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editProject() {
+    ragAssistant.showToast('Proje düzenleme özelliği yakında eklenecek!', 'info');
+}
+
+function updateStatus() {
+    new bootstrap.Modal(document.getElementById('statusModal')).show();
+}
+
+function provideFeedback() {
+    ragAssistant.showToast('Geri bildirim özelliği yakında eklenecek!', 'info');
+}
+
+function shareProject() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ project.title }}',
+            text: '{{ project.description[:100] if project.description else "Proje detaylarını görüntüleyin" }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: Copy to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            ragAssistant.showToast('Proje linki kopyalandı!', 'success');
+        });
+    }
+}
+
+// Document upload form
+document.getElementById('uploadDocForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    formData.append('project_id', {{ project.id }});
+    
+    try {
+        const response = await fetch('/api/projects/{{ project.id }}/upload-document', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('uploadDocModal')).hide();
+            this.reset();
+            location.reload();
+        } else {
+            const error = await response.json();
+            ragAssistant.showToast(error.message || 'Belge yüklenirken hata oluştu!', 'error');
+        }
+    } catch (error) {
+        console.error('Belge yükleme hatası:', error);
+        ragAssistant.showToast('Belge yüklenirken hata oluştu!', 'error');
+    }
+});
+
+// Status update form
+document.getElementById('statusUpdateForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const updateData = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetch('/api/projects/{{ project.id }}/status', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
+            location.reload();
+        } else {
+            const error = await response.json();
+            ragAssistant.showToast(error.message || 'Durum güncellenirken hata oluştu!', 'error');
+        }
+    } catch (error) {
+        console.error('Durum güncelleme hatası:', error);
+        ragAssistant.showToast('Durum güncellenirken hata oluştu!', 'error');
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

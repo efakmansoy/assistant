@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}RAG Assistant - AI Destekli Proje Geliştirme{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    <i class="fas fa-brain me-3"></i>RAG Assistant
+                </h1>
+                <p class="lead mb-4">
+                    Öğrenci ve danışmanlar için AI destekli proje geliştirme platformu. 
+                    Yapay zeka asistanımız ile projelerinizi daha verimli bir şekilde yönetin.
+                </p>
+                <div class="d-flex gap-3">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Hemen Başla
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Giriş Yap
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <i class="fas fa-robot" style="font-size: 200px; opacity: 0.1;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="container">
+    <div class="row text-center mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Platform Özellikleri</h2>
+            <p class="lead text-muted">Modern teknolojilerle desteklenen kapsamlı proje yönetimi çözümü</p>
+        </div>
+    </div>
+    
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="fas fa-robot text-primary" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">AI Asistan</h5>
+                    <p class="card-text">
+                        Google Gemini destekli yapay zeka asistanımız ile proje geliştirme sürecinde 
+                        anında yardım alın. PDF dökümanlarınızı analiz ederek akıllı öneriler sunar.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="fas fa-project-diagram text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Proje Yönetimi</h5>
+                    <p class="card-text">
+                        Projelerinizi oluşturun, takip edin ve yönetin. Danışman atama, ilerleme 
+                        izleme ve yarışma entegrasyonu ile tam kontrolü elinizde tutun.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="fas fa-users text-info" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Rol Tabanlı Sistem</h5>
+                    <p class="card-text">
+                        Öğrenci, danışman ve admin rolleri ile her kullanıcı tipine özel 
+                        deneyim. Herkes kendi yetkisi dahilinde sistemi kullanabilir.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technology Stack -->
+<div class="bg-light py-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-12 mb-4">
+                <h3>Kullanılan Teknolojiler</h3>
+                <p class="text-muted">Modern ve güvenilir teknoloji altyapısı</p>
+            </div>
+        </div>
+        
+        <div class="row align-items-center justify-content-center">
+            <div class="col-6 col-md-2 text-center mb-3">
+                <i class="fab fa-python text-primary" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0"><small><strong>Python Flask</strong></small></p>
+            </div>
+            <div class="col-6 col-md-2 text-center mb-3">
+                <i class="fas fa-database text-success" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0"><small><strong>SQLite + Chroma</strong></small></p>
+            </div>
+            <div class="col-6 col-md-2 text-center mb-3">
+                <i class="fab fa-bootstrap text-purple" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0"><small><strong>Bootstrap 5</strong></small></p>
+            </div>
+            <div class="col-6 col-md-2 text-center mb-3">
+                <i class="fas fa-brain text-warning" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0"><small><strong>LLaMA Index</strong></small></p>
+            </div>
+            <div class="col-6 col-md-2 text-center mb-3">
+                <i class="fab fa-google text-danger" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0"><small><strong>Gemini AI</strong></small></p>
+            </div>
+            <div class="col-6 col-md-2 text-center mb-3">
+                <i class="fas fa-comments text-info" style="font-size: 2.5rem;"></i>
+                <p class="mt-2 mb-0"><small><strong>Socket.IO</strong></small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Call to Action -->
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12 text-center">
+            <h3 class="mb-4">Hemen Başlayın!</h3>
+            <p class="lead text-muted mb-4">
+                AI destekli proje geliştirme deneyimini şimdi keşfedin
+            </p>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-rocket me-2"></i>Ücretsiz Kayıt Ol
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

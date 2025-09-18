@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-danger text-white rounded p-4">
+                <h2 class="mb-1">
+                    <i class="fas fa-crown me-2"></i>Admin Dashboard
+                </h2>
+                <p class="mb-0 opacity-75">
+                    Sistem yönetimi ve genel istatistikleri görüntüleyin.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-primary text-white">
+                <div class="card-body">
+                    <i class="fas fa-users fs-2 mb-2"></i>
+                    <h4 class="card-title mb-1">{{ stats.total_users }}</h4>
+                    <small class="opacity-75">Toplam Kullanıcı</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-success text-white">
+                <div class="card-body">
+                    <i class="fas fa-project-diagram fs-2 mb-2"></i>
+                    <h4 class="card-title mb-1">{{ stats.total_projects }}</h4>
+                    <small class="opacity-75">Toplam Proje</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-warning text-white">
+                <div class="card-body">
+                    <i class="fas fa-trophy fs-2 mb-2"></i>
+                    <h4 class="card-title mb-1">{{ stats.total_competitions }}</h4>
+                    <small class="opacity-75">Toplam Yarışma</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-info text-white">
+                <div class="card-body">
+                    <i class="fas fa-comments fs-2 mb-2"></i>
+                    <h4 class="card-title mb-1">{{ stats.total_messages }}</h4>
+                    <small class="opacity-75">Chat Mesajları</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Tabs Navigation -->
+            <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="users-tab" data-bs-toggle="tab" 
+                            data-bs-target="#users" type="button" role="tab">
+                        <i class="fas fa-users me-2"></i>Kullanıcı Yönetimi
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="competitions-tab" data-bs-toggle="tab" 
+                            data-bs-target="#competitions" type="button" role="tab">
+                        <i class="fas fa-trophy me-2"></i>Yarışma Yönetimi
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="projects-tab" data-bs-toggle="tab" 
+                            data-bs-target="#projects" type="button" role="tab">
+                        <i class="fas fa-project-diagram me-2"></i>Proje Genel Bakış
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="adminTabsContent">
+                <!-- Users Tab -->
+                <div class="tab-pane fade show active" id="users" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Kullanıcılar ({{ users|length }})</h6>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newUserModal">
+                                <i class="fas fa-plus me-1"></i>Yeni Kullanıcı
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Kullanıcı</th>
+                                            <th>Email</th>
+                                            <th>Rol</th>
+                                            <th>Kayıt Tarihi</th>
+                                            <th>Durum</th>
+                                            <th>İşlemler</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user in users %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar bg-{{ 'primary' if user.role == 'admin' 
+                                                               else 'success' if user.role == 'advisor' 
+                                                               else 'info' }} text-white rounded-circle me-2 d-flex align-items-center justify-content-center" 
+                                                         style="width: 32px; height: 32px;">
+                                                        <small>{{ (user.first_name or 'A')[:1] }}{{ (user.last_name or 'B')[:1] }}</small>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold">{{ user.get_full_name() }}</div>
+                                                        <small class="text-muted">{{ user.username }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ user.email }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ 'danger' if user.role == 'admin' 
+                                                           else 'success' if user.role == 'advisor' 
+                                                           else 'primary' }}">
+                                                    {{ user.get_role_display() }}
+                                                </span>
+                                            </td>
+                                            <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                                            <td>
+                                                <span class="badge bg-success">Aktif</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" 
+                                                            onclick="editUser({{ user.id }})">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    {% if user.id != current_user.id %}
+                                                    <button class="btn btn-outline-danger" 
+                                                            onclick="deleteUser({{ user.id }})">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competitions Tab -->
+                <div class="tab-pane fade" id="competitions" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Yarışmalar ({{ competitions|length }})</h6>
+                            <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#newCompetitionModal">
+                                <i class="fas fa-plus me-1"></i>Yeni Yarışma
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if competitions %}
+                                <div class="row">
+                                    {% for competition in competitions %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card border-start border-4 border-warning">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="card-title mb-0">{{ competition.name }}</h6>
+                                                    <span class="badge bg-{{ 'success' if competition.is_active 
+                                                              else 'secondary' }}">
+                                                        {{ 'Aktif' if competition.is_active else 'Pasif' }}
+                                                    </span>
+                                                </div>
+                                                <p class="card-text text-muted small mb-2">
+                                                    {{ competition.description[:100] }}{% if competition.description|length > 100 %}...{% endif %}
+                                                </p>
+                                                {% if competition.registration_deadline %}
+                                                <div class="mb-2">
+                                                    <small class="text-warning">
+                                                        <i class="fas fa-calendar me-1"></i>
+                                                        Son tarih: {{ competition.registration_deadline.strftime('%d.%m.%Y') }}
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-project-diagram me-1"></i>
+                                                        {{ competition.projects|length }} proje
+                                                    </small>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-warning" 
+                                                                onclick="editCompetition({{ competition.id }})">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-danger" 
+                                                                onclick="deleteCompetition({{ competition.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-trophy text-muted" style="font-size: 4rem;"></i>
+                                    <h5 class="mt-3 text-muted">Henüz yarışma oluşturulmamış</h5>
+                                    <p class="text-muted">İlk yarışmayı oluşturarak başlayın!</p>
+                                    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#newCompetitionModal">
+                                        <i class="fas fa-plus me-2"></i>İlk Yarışmayı Oluşturun
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Projects Overview Tab -->
+                <div class="tab-pane fade" id="projects" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-header bg-transparent">
+                            <h6 class="mb-0">Proje Genel Bakış ({{ projects|length }})</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Proje</th>
+                                            <th>Sahibi</th>
+                                            <th>Danışman</th>
+                                            <th>Durum</th>
+                                            <th>İlerleme</th>
+                                            <th>Son Güncelleme</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for project in projects %}
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <div class="fw-bold">{{ project.title }}</div>
+                                                    {% if project.competition %}
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-trophy me-1"></i>{{ project.competition.name }}
+                                                    </small>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>{{ project.owner.get_full_name() }}</td>
+                                            <td>
+                                                {% if project.advisor %}
+                                                    {{ project.advisor.get_full_name() }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if project.status == 'completed' 
+                                                           else 'warning' if project.status == 'development' 
+                                                           else 'info' if project.status == 'testing' 
+                                                           else 'secondary' }}">
+                                                    {{ project.get_status_display() }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 10px; width: 80px;">
+                                                    <div class="progress-bar" role="progressbar" 
+                                                         style="width: {{ project.get_progress_percentage() }}%" 
+                                                         aria-valuenow="{{ project.get_progress_percentage() }}" 
+                                                         aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">{{ project.get_progress_percentage() }}%</small>
+                                            </td>
+                                            <td>
+                                                <small>{{ project.updated_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - System Info -->
+        <div class="col-lg-4">
+            <!-- System Status -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-server me-2"></i>Sistem Durumu
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>AI Asistan</span>
+                        <span class="badge bg-success">Aktif</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Veritabanı</span>
+                        <span class="badge bg-success">Bağlı</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Chat Sistemi</span>
+                        <span class="badge bg-warning">Bakımda</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>RAG Sistemi</span>
+                        <span class="badge bg-warning">Devre Dışı</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Registrations -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>Son Kayıtlar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for user in users|sort(attribute='created_at', reverse=true) %}
+                        {% if loop.index <= 5 %}
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="avatar bg-{{ 'primary' if user.role == 'admin' 
+                                   else 'success' if user.role == 'advisor' 
+                                   else 'info' }} text-white rounded-circle me-2 d-flex align-items-center justify-content-center" 
+                             style="width: 28px; height: 28px;">
+                            <small>{{ (user.first_name or 'A')[:1] }}</small>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small">{{ user.get_full_name() }}</div>
+                            <small class="text-muted">{{ user.get_role_display() }}</small>
+                        </div>
+                        <small class="text-muted">{{ user.created_at.strftime('%d.%m') }}</small>
+                    </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Hızlı İşlemler
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="exportData()">
+                            <i class="fas fa-download me-2"></i>Verileri Dışa Aktar
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" onclick="systemMaintenance()">
+                            <i class="fas fa-tools me-2"></i>Sistem Bakımı
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="viewLogs()">
+                            <i class="fas fa-file-alt me-2"></i>Sistem Logları
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="sendBroadcast()">
+                            <i class="fas fa-bullhorn me-2"></i>Genel Duyuru
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New User Modal -->
+<div class="modal fade" id="newUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Yeni Kullanıcı Ekle
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newUserForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="firstName" class="form-label">Ad *</label>
+                            <input type="text" class="form-control" id="firstName" name="first_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="lastName" class="form-label">Soyad *</label>
+                            <input type="text" class="form-control" id="lastName" name="last_name" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Kullanıcı Adı *</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Rol *</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="">Rol Seçin</option>
+                            <option value="student">Öğrenci</option>
+                            <option value="advisor">Danışman</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Şifre *</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Kullanıcıyı Ekle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- New Competition Modal -->
+<div class="modal fade" id="newCompetitionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-trophy me-2"></i>Yeni Yarışma Ekle
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newCompetitionForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="competitionName" class="form-label">Yarışma Adı *</label>
+                        <input type="text" class="form-control" id="competitionName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="competitionDescription" class="form-label">Açıklama</label>
+                        <textarea class="form-control" id="competitionDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="registrationDeadline" class="form-label">Kayıt Son Tarihi</label>
+                            <input type="date" class="form-control" id="registrationDeadline" name="registration_deadline">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="submissionDeadline" class="form-label">Teslim Son Tarihi</label>
+                            <input type="date" class="form-control" id="submissionDeadline" name="submission_deadline">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive" name="is_active" checked>
+                            <label class="form-check-label" for="isActive">
+                                Yarışma aktif olsun
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Yarışmayı Ekle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Prevent multiple event listeners
+let formListenersAdded = false;
+
+// User management functions
+function editUser(userId) {
+    ragAssistant.showToast('Kullanıcı düzenleme özelliği yakında eklenecek!', 'info');
+}
+
+function deleteUser(userId) {
+    if (confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?')) {
+        ragAssistant.showToast('Kullanıcı silme özelliği yakında eklenecek!', 'info');
+    }
+}
+
+// Competition management functions
+function editCompetition(competitionId) {
+    ragAssistant.showToast('Yarışma düzenleme özelliği yakında eklenecek!', 'info');
+}
+
+function deleteCompetition(competitionId) {
+    if (confirm('Bu yarışmayı silmek istediğinizden emin misiniz?')) {
+        ragAssistant.showToast('Yarışma silme özelliği yakında eklenecek!', 'info');
+    }
+}
+
+// Quick action functions
+function exportData() {
+    ragAssistant.showToast('Veri dışa aktarma özelliği yakında eklenecek!', 'info');
+}
+
+function systemMaintenance() {
+    ragAssistant.showToast('Sistem bakım özelliği yakında eklenecek!', 'info');
+}
+
+function viewLogs() {
+    ragAssistant.showToast('Log görüntüleme özelliği yakında eklenecek!', 'info');
+}
+
+function sendBroadcast() {
+    ragAssistant.showToast('Genel duyuru özelliği yakında eklenecek!', 'info');
+}
+
+// Initialize form listeners only once
+document.addEventListener('DOMContentLoaded', function() {
+    if (formListenersAdded) return;
+    formListenersAdded = true;
+    
+    // User form submission
+    const userForm = document.getElementById('newUserForm');
+    if (userForm) {
+        userForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Ekleniyor...';
+            
+            const formData = new FormData(this);
+            const userData = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    ragAssistant.showToast('Kullanıcı başarıyla eklendi!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('newUserModal')).hide();
+                    this.reset();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    ragAssistant.showToast(result.message || 'Kullanıcı eklenirken hata oluştu!', 'error');
+                }
+            } catch (error) {
+                console.error('Kullanıcı ekleme hatası:', error);
+                ragAssistant.showToast('Kullanıcı eklenirken hata oluştu!', 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        });
+    }
+    
+    // Competition form submission
+    const competitionForm = document.getElementById('newCompetitionForm');
+    if (competitionForm) {
+        competitionForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Ekleniyor...';
+            
+            const formData = new FormData(this);
+            const competitionData = Object.fromEntries(formData.entries());
+            
+            // Convert checkbox value
+            competitionData.is_active = formData.has('is_active');
+            
+            try {
+                const response = await fetch('/admin/competitions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(competitionData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    ragAssistant.showToast('Yarışma başarıyla eklendi!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('newCompetitionModal')).hide();
+                    this.reset();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    ragAssistant.showToast(result.message || 'Yarışma eklenirken hata oluştu!', 'error');
+                }
+            } catch (error) {
+                console.error('Yarışma ekleme hatası:', error);
+                ragAssistant.showToast('Yarışma eklenirken hata oluştu!', 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

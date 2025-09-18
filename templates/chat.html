@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}AI Asistan - RAG Assistant{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: 70vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .message {
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: flex-start;
+    }
+    
+    .message.user-message {
+        justify-content: flex-end;
+    }
+    
+    .message-content {
+        max-width: 70%;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        word-wrap: break-word;
+    }
+    
+    .user-message .message-content {
+        background-color: #007bff;
+        color: white;
+        border-bottom-right-radius: 0.25rem;
+    }
+    
+    .ai-message .message-content {
+        background-color: white;
+        border: 1px solid #dee2e6;
+        border-bottom-left-radius: 0.25rem;
+    }
+    
+    .message-header {
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+        opacity: 0.7;
+    }
+    
+    .user-message .message-header {
+        text-align: right;
+        color: white;
+    }
+    
+    .ai-message .message-header {
+        color: #6c757d;
+    }
+    
+    .typing-indicator {
+        display: none;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .typing-dots {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: white;
+        border: 1px solid #dee2e6;
+        border-radius: 1rem;
+    }
+    
+    .typing-dots span {
+        height: 8px;
+        width: 8px;
+        background-color: #6c757d;
+        border-radius: 50%;
+        display: inline-block;
+        margin: 0 1px;
+        animation: typing 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes typing {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+    }
+    
+    .message-input-container {
+        background-color: white;
+        border-radius: 0.5rem;
+        border: 1px solid #dee2e6;
+        padding: 0.5rem;
+    }
+    
+    .online-status {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #28a745;
+        border-radius: 50%;
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Chat Area -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot me-2"></i>AI Asistan 
+                        <span class="online-status" id="connectionStatus"></span>
+                        <small class="float-end" id="connectionText">Bağlanıyor...</small>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="message ai-message">
+                                <div class="message-content">
+                                    <div class="message-header">
+                                        <i class="fas fa-robot me-1"></i>AI Asistan
+                                    </div>
+                                    Merhaba! Ben RAG Assistant'ınızım. Size proje geliştirme sürecinde yardımcı olmak için buradayım. 
+                                    {% if current_user.is_student() %}
+                                    Öğrenci olarak size özel rehberlik sağlayacağım.
+                                    {% elif current_user.is_advisor() %}
+                                    Danışman olarak size proje yönetimi konusunda destek olacağım.
+                                    {% endif %}
+                                    PDF dökümanlarınızı analiz ederek akıllı öneriler sunabilirim. Nasıl yardımcı olabilirim?
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="typing-indicator" id="typingIndicator">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <small class="ms-2 text-muted">AI asistan yazıyor...</small>
+                        </div>
+                        
+                        <div class="message-input-container">
+                            <div class="input-group">
+                                <input type="text" class="form-control border-0" id="messageInput" 
+                                       placeholder="Mesajınızı yazın..." autocomplete="off">
+                                <button class="btn btn-primary" type="button" id="sendButton">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Project Context -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-project-diagram me-2"></i>Proje Bağlamı
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <select class="form-select" id="projectSelect">
+                        <option value="">Genel Sohbet</option>
+                        <!-- Projeler dinamik olarak yüklenecek -->
+                    </select>
+                    <small class="form-text text-muted">
+                        Belirli bir proje seçerek o proje hakkında özel yardım alabilirsiniz.
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Chat Tips -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>İpuçları
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Proje geliştirme sürecinizle ilgili sorular sorun</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>PDF dökümanlarınız hakkında bilgi isteyin</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Teknik problemler için yardım alın</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Yarışma gereksinimlerini öğrenin</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Hızlı Eylemler
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm quick-message" 
+                                data-message="Proje geliştirme sürecim hakkında rehberlik ver">
+                            <i class="fas fa-rocket me-1"></i>Proje Rehberliği
+                        </button>
+                        <button class="btn btn-outline-info btn-sm quick-message" 
+                                data-message="Teknik sorun yaşıyorum, yardım eder misin?">
+                            <i class="fas fa-tools me-1"></i>Teknik Destek
+                        </button>
+                        <button class="btn btn-outline-success btn-sm quick-message" 
+                                data-message="Yarışma gereksinimlerini anlat">
+                            <i class="fas fa-trophy me-1"></i>Yarışma Bilgisi
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm quick-message" 
+                                data-message="PDF dökümanımdaki bilgileri özetle">
+                            <i class="fas fa-file-pdf me-1"></i>Döküman Analizi
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+<script>
+class ChatInterface {
+    constructor() {
+        this.socket = io();
+        this.messageInput = document.getElementById('messageInput');
+        this.sendButton = document.getElementById('sendButton');
+        this.chatMessages = document.getElementById('chatMessages');
+        this.typingIndicator = document.getElementById('typingIndicator');
+        this.projectSelect = document.getElementById('projectSelect');
+        this.connectionStatus = document.getElementById('connectionStatus');
+        this.connectionText = document.getElementById('connectionText');
+        this.currentRoom = 'general';
+        
+        this.initializeEventListeners();
+        this.loadProjects();
+    }
+    
+    initializeEventListeners() {
+        // Socket events
+        this.socket.on('connect', () => {
+            console.log('Connected to server');
+            this.updateConnectionStatus(true);
+            this.socket.emit('join_room', {room: this.currentRoom});
+            this.loadChatHistory();
+        });
+        
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            this.updateConnectionStatus(false);
+        });
+        
+        this.socket.on('receive_message', (data) => {
+            this.addMessage(data);
+        });
+        
+        this.socket.on('ai_typing', (data) => {
+            if (data.status) {
+                this.showTypingIndicator();
+            } else {
+                this.hideTypingIndicator();
+            }
+        });
+        
+        this.socket.on('chat_history', (data) => {
+            this.loadChatHistoryData(data.messages);
+        });
+        
+        this.socket.on('error', (data) => {
+            this.showError(data.message);
+        });
+        
+        this.socket.on('status', (data) => {
+            console.log('Status:', data.msg);
+        });
+        
+        // UI events
+        this.sendButton.addEventListener('click', () => this.sendMessage());
+        
+        this.messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.sendMessage();
+            }
+        });
+        
+        // Project selection
+        this.projectSelect.addEventListener('change', () => {
+            this.loadChatHistory();
+        });
+        
+        // Quick message buttons
+        document.querySelectorAll('.quick-message').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const message = e.currentTarget.dataset.message;
+                this.messageInput.value = message;
+                this.sendMessage();
+            });
+        });
+    }
+    
+    updateConnectionStatus(connected) {
+        if (connected) {
+            this.connectionStatus.style.backgroundColor = '#28a745';
+            this.connectionText.textContent = 'Bağlandı';
+        } else {
+            this.connectionStatus.style.backgroundColor = '#dc3545';
+            this.connectionText.textContent = 'Bağlantı Kesildi';
+        }
+    }
+    
+    sendMessage() {
+        const message = this.messageInput.value.trim();
+        if (!message) return;
+        
+        const projectId = this.projectSelect.value || null;
+        
+        // AI chat için özel emit
+        this.socket.emit('ai_chat', {
+            message: message,
+            project_id: projectId,
+            room: this.currentRoom
+        });
+        
+        this.messageInput.value = '';
+    }
+    
+    addMessage(data) {
+        const messageDiv = document.createElement('div');
+        const isUser = !data.is_ai;
+        messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+        
+        const icon = isUser ? 'fas fa-user' : 'fas fa-robot';
+        
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <div class="message-header">
+                    <i class="${icon} me-1"></i>${data.full_name || data.username} - ${data.timestamp}
+                </div>
+                ${this.formatMessage(data.message)}
+            </div>
+        `;
+        
+        this.chatMessages.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+    
+    formatMessage(message) {
+        // Basit markdown-like formatting
+        message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        message = message.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        message = message.replace(/\n/g, '<br>');
+        return message;
+    }
+    
+    showTypingIndicator() {
+        this.typingIndicator.style.display = 'flex';
+        this.scrollToBottom();
+    }
+    
+    hideTypingIndicator() {
+        this.typingIndicator.style.display = 'none';
+    }
+    
+    scrollToBottom() {
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+    
+    loadChatHistory() {
+        const projectId = this.projectSelect.value || null;
+        this.socket.emit('load_chat_history', {
+            project_id: projectId,
+            limit: 50
+        });
+    }
+    
+    loadChatHistoryData(messages) {
+        // Clear existing messages except welcome message
+        const welcomeMessage = this.chatMessages.querySelector('.ai-message');
+        this.chatMessages.innerHTML = '';
+        if (welcomeMessage) {
+            this.chatMessages.appendChild(welcomeMessage);
+        }
+        
+        // Add historical messages
+        messages.forEach(msg => {
+            this.addMessage(msg);
+        });
+    }
+    
+    showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+        errorDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        this.chatMessages.insertBefore(errorDiv, this.chatMessages.firstChild);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    async loadProjects() {
+        try {
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const projects = await response.json();
+                
+                // Clear existing options except the first one
+                this.projectSelect.innerHTML = '<option value="">Genel Sohbet</option>';
+                
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = project.title;
+                    this.projectSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Projeler yüklenirken hata:', error);
+        }
+    }
+}
+
+// Initialize chat when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.chatInterface = new ChatInterface();
+});
+</script>
+{% endblock %}

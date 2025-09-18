@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Öğrenci Dashboard - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-primary text-white rounded p-4">
+                <h2 class="mb-1">
+                    <i class="fas fa-graduation-cap me-2"></i>Hoş geldiniz, {{ current_user.get_full_name() }}!
+                </h2>
+                <p class="mb-0 opacity-75">
+                    Proje geliştirme yolculuğunuzda size rehberlik etmek için buradayız.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Projects -->
+        <div class="col-lg-8">
+            <!-- Quick Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-project-diagram text-primary fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">{{ projects|length }}</h4>
+                            <small class="text-muted">Toplam Proje</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-clock text-warning fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">
+                                {{ projects|selectattr('status', 'equalto', 'development')|list|length }}
+                            </h4>
+                            <small class="text-muted">Geliştirmede</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle text-success fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">
+                                {{ projects|selectattr('status', 'equalto', 'completed')|list|length }}
+                            </h4>
+                            <small class="text-muted">Tamamlandı</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-trophy text-danger fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">{{ competitions|length }}</h4>
+                            <small class="text-muted">Aktif Yarışma</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projects Section -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-project-diagram me-2"></i>Projelerim
+                    </h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+                        <i class="fas fa-plus me-1"></i>Yeni Proje
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if projects %}
+                        <div class="row">
+                            {% for project in projects %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card project-card h-100 border-start border-4 border-primary">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0">{{ project.title }}</h6>
+                                            <span class="badge bg-{{ 'success' if project.status == 'completed' 
+                                                        else 'warning' if project.status == 'development' 
+                                                        else 'info' if project.status == 'testing' 
+                                                        else 'secondary' }}">
+                                                {{ project.get_status_display() }}
+                                            </span>
+                                        </div>
+                                        <p class="card-text text-muted small mb-2">
+                                            {{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}
+                                        </p>
+                                        <div class="progress mb-2" style="height: 5px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ project.get_progress_percentage() }}%" 
+                                                 aria-valuenow="{{ project.get_progress_percentage() }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                {{ project.get_progress_percentage() }}% tamamlandı
+                                            </small>
+                                            <div>
+                                                <a href="{{ url_for('main.project_detail', project_id=project.id) }}" 
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-eye me-1"></i>Görüntüle
+                                                </a>
+                                            </div>
+                                        </div>
+                                        {% if project.advisor %}
+                                        <div class="mt-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-user-tie me-1"></i>Danışman: {{ project.advisor.get_full_name() }}
+                                            </small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-folder-open text-muted" style="font-size: 4rem;"></i>
+                            <h5 class="mt-3 text-muted">Henüz proje oluşturmadınız</h5>
+                            <p class="text-muted">İlk projenizi oluşturarak başlayın!</p>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+                                <i class="fas fa-plus me-2"></i>İlk Projenizi Oluşturun
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Sidebar -->
+        <div class="col-lg-4">
+            <!-- AI Assistant Quick Access -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-robot me-2"></i>AI Asistan
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text small">
+                        Projeleriniz hakkında sorularınız mı var? AI asistanımız size yardımcı olabilir!
+                    </p>
+                    <a href="{{ url_for('main.chat') }}" class="btn btn-success btn-sm w-100">
+                        <i class="fas fa-comments me-2"></i>Sohbete Başla
+                    </a>
+                </div>
+            </div>
+
+            <!-- Active Competitions -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>Aktif Yarışmalar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if competitions %}
+                        {% for competition in competitions[:3] %}
+                        <div class="border-bottom pb-2 mb-2">
+                            <h6 class="mb-1">{{ competition.name }}</h6>
+                            <p class="text-muted small mb-1">{{ competition.description[:80] }}...</p>
+                            {% if competition.registration_deadline %}
+                            <small class="text-danger">
+                                <i class="fas fa-clock me-1"></i>Son tarih: {{ competition.registration_deadline.strftime('%d.%m.%Y') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if competitions|length > 3 %}
+                        <small class="text-muted">ve {{ competitions|length - 3 }} yarışma daha...</small>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted small mb-0">Şu anda aktif yarışma bulunmuyor.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>İpuçları
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Projelerinizi düzenli olarak güncelleyin</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>AI asistan ile ilerleme durumunuzu değerlendirin</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Dokümantasyon yüklemeyi unutmayın</small>
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Danışmanınızla düzenli iletişim kurun</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Project Modal -->
+<div class="modal fade" id="newProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Yeni Proje Oluştur
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newProjectForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="projectTitle" class="form-label">Proje Başlığı *</label>
+                        <input type="text" class="form-control" id="projectTitle" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectDescription" class="form-label">Açıklama</label>
+                        <textarea class="form-control" id="projectDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectCategory" class="form-label">Kategori</label>
+                        <select class="form-select" id="projectCategory" name="category">
+                            <option value="">Kategori Seçin</option>
+                            <option value="web">Web Geliştirme</option>
+                            <option value="mobile">Mobil Uygulama</option>
+                            <option value="ai">Yapay Zeka</option>
+                            <option value="iot">IoT/Gömülü</option>
+                            <option value="game">Oyun Geliştirme</option>
+                            <option value="other">Diğer</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectCompetition" class="form-label">Yarışma</label>
+                        <select class="form-select" id="projectCompetition" name="competition_id">
+                            <option value="">Yarışma Seçin (İsteğe bağlı)</option>
+                            {% for competition in competitions %}
+                            <option value="{{ competition.id }}">{{ competition.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Projeyi Oluştur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.getElementById('newProjectForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const projectData = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await ragAssistant.createProject(projectData);
+        if (response) {
+            location.reload(); // Sayfayı yenile
+        }
+    } catch (error) {
+        console.error('Proje oluşturma hatası:', error);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

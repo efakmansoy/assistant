@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+
+{% block title %}Hesabım - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar bg-{{ 'danger' if current_user.role == 'admin' 
+                                   else 'success' if current_user.role == 'advisor' 
+                                   else 'primary' }} text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px; font-size: 1.5rem;">
+                            {{ current_user.first_name[:1] }}{{ current_user.last_name[:1] }}
+                        </div>
+                        <div>
+                            <h2 class="mb-1">{{ current_user.get_full_name() }}</h2>
+                            <p class="text-muted mb-0">
+                                <span class="badge bg-{{ 'danger' if current_user.role == 'admin' 
+                                           else 'success' if current_user.role == 'advisor' 
+                                           else 'primary' }}">
+                                    {{ current_user.get_role_display() }}
+                                </span>
+                                <span class="ms-2">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {{ current_user.created_at.strftime('%d.%m.%Y') }} tarihinden beri üye
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="info-tab" data-bs-toggle="tab" 
+                            data-bs-target="#info" type="button" role="tab">
+                        <i class="fas fa-user me-2"></i>Kişisel Bilgiler
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" 
+                            data-bs-target="#security" type="button" role="tab">
+                        <i class="fas fa-shield-alt me-2"></i>Güvenlik
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="preferences-tab" data-bs-toggle="tab" 
+                            data-bs-target="#preferences" type="button" role="tab">
+                        <i class="fas fa-cog me-2"></i>Tercihler
+                    </button>
+                </li>
+                {% if current_user.is_student() or current_user.is_advisor() %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="stats-tab" data-bs-toggle="tab" 
+                            data-bs-target="#stats" type="button" role="tab">
+                        <i class="fas fa-chart-line me-2"></i>İstatistikler
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="profileTabsContent">
+                <!-- Personal Info Tab -->
+                <div class="tab-pane fade show active" id="info" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-body">
+                            <form id="profileForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="firstName" class="form-label">Ad</label>
+                                        <input type="text" class="form-control" id="firstName" name="first_name" 
+                                               value="{{ current_user.first_name or '' }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="lastName" class="form-label">Soyad</label>
+                                        <input type="text" class="form-control" id="lastName" name="last_name" 
+                                               value="{{ current_user.last_name or '' }}" required>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="username" class="form-label">Kullanıcı Adı</label>
+                                        <input type="text" class="form-control" id="username" name="username" 
+                                               value="{{ current_user.username }}" readonly>
+                                        <div class="form-text">Kullanıcı adı değiştirilemez.</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">E-posta</label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ current_user.email }}" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="bio" class="form-label">Hakkında</label>
+                                    <textarea class="form-control" id="bio" name="bio" rows="4" 
+                                              placeholder="Kendiniz hakkında kısa bilgi yazın..."></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="role" class="form-label">Rol</label>
+                                    <input type="text" class="form-control" id="role" 
+                                           value="{{ current_user.get_role_display() }}" readonly>
+                                    <div class="form-text">Rol değişikliği için admin ile iletişime geçin.</div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Bilgileri Güncelle
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div class="tab-pane fade" id="security" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-body">
+                            <!-- Password Change -->
+                            <div class="mb-4">
+                                <h5 class="card-title">
+                                    <i class="fas fa-key me-2"></i>Şifre Değiştir
+                                </h5>
+                                <form id="passwordForm">
+                                    <div class="mb-3">
+                                        <label for="currentPassword" class="form-label">Mevcut Şifre</label>
+                                        <input type="password" class="form-control" id="currentPassword" 
+                                               name="current_password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newPassword" class="form-label">Yeni Şifre</label>
+                                        <input type="password" class="form-control" id="newPassword" 
+                                               name="new_password" required minlength="6">
+                                        <div class="form-text">En az 6 karakter olmalıdır.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirmPassword" class="form-label">Yeni Şifre (Tekrar)</label>
+                                        <input type="password" class="form-control" id="confirmPassword" 
+                                               name="confirm_password" required>
+                                    </div>
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="fas fa-lock me-2"></i>Şifreyi Değiştir
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Security Info -->
+                            <div class="mb-4">
+                                <h5 class="card-title">
+                                    <i class="fas fa-shield-alt me-2"></i>Güvenlik Bilgileri
+                                </h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="bg-light rounded p-3 mb-3">
+                                            <h6 class="mb-2">Son Giriş</h6>
+                                            <p class="mb-0 text-muted">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                Şu anda çevrimiçi
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-light rounded p-3 mb-3">
+                                            <h6 class="mb-2">Hesap Güvenliği</h6>
+                                            <p class="mb-0">
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Güvenli
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Two-Factor Authentication -->
+                            <div class="mb-4">
+                                <h5 class="card-title">
+                                    <i class="fas fa-mobile-alt me-2"></i>İki Faktörlü Doğrulama
+                                </h5>
+                                <div class="d-flex justify-content-between align-items-center bg-light rounded p-3">
+                                    <div>
+                                        <h6 class="mb-1">İki faktörlü doğrulama (2FA)</h6>
+                                        <p class="text-muted mb-0 small">
+                                            Hesabınızın güvenliğini artırmak için iki faktörlü doğrulamayı etkinleştirin.
+                                        </p>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="toggleTwoFactor()">
+                                        <i class="fas fa-toggle-off me-1"></i>Etkinleştir
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preferences Tab -->
+                <div class="tab-pane fade" id="preferences" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-body">
+                            <form id="preferencesForm">
+                                <!-- Notification Settings -->
+                                <div class="mb-4">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-bell me-2"></i>Bildirim Ayarları
+                                    </h5>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                                        <label class="form-check-label" for="emailNotifications">
+                                            E-posta bildirimleri
+                                        </label>
+                                        <div class="form-text">Proje güncellemeleri ve önemli bildirimler için e-posta alın.</div>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="pushNotifications" checked>
+                                        <label class="form-check-label" for="pushNotifications">
+                                            Tarayıcı bildirimleri
+                                        </label>
+                                        <div class="form-text">Anlık bildirimler için tarayıcı izni verin.</div>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="chatNotifications" checked>
+                                        <label class="form-check-label" for="chatNotifications">
+                                            Chat bildirimleri
+                                        </label>
+                                        <div class="form-text">Yeni chat mesajları için bildirim alın.</div>
+                                    </div>
+                                </div>
+
+                                <!-- Language & Region -->
+                                <div class="mb-4">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-globe me-2"></i>Dil ve Bölge
+                                    </h5>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="language" class="form-label">Dil</label>
+                                            <select class="form-select" id="language" name="language">
+                                                <option value="tr" selected>Türkçe</option>
+                                                <option value="en">English</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="timezone" class="form-label">Saat Dilimi</label>
+                                            <select class="form-select" id="timezone" name="timezone">
+                                                <option value="Europe/Istanbul" selected>İstanbul (GMT+3)</option>
+                                                <option value="UTC">UTC (GMT+0)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Theme Settings -->
+                                <div class="mb-4">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-palette me-2"></i>Tema Ayarları
+                                    </h5>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="theme" id="lightTheme" value="light" checked>
+                                                <label class="form-check-label" for="lightTheme">
+                                                    <i class="fas fa-sun me-1"></i>Açık Tema
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="theme" id="darkTheme" value="dark">
+                                                <label class="form-check-label" for="darkTheme">
+                                                    <i class="fas fa-moon me-1"></i>Koyu Tema
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="theme" id="autoTheme" value="auto">
+                                                <label class="form-check-label" for="autoTheme">
+                                                    <i class="fas fa-adjust me-1"></i>Otomatik
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Tercihleri Kaydet
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Tab (for students and advisors) -->
+                {% if current_user.is_student() or current_user.is_advisor() %}
+                <div class="tab-pane fade" id="stats" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-body">
+                            {% if current_user.is_student() %}
+                            <!-- Student Statistics -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-primary mb-0" id="totalProjects">0</div>
+                                        <small class="text-muted">Toplam Proje</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-success mb-0" id="completedProjects">0</div>
+                                        <small class="text-muted">Tamamlandı</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-warning mb-0" id="inProgressProjects">0</div>
+                                        <small class="text-muted">Devam Eden</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-info mb-0" id="chatMessages">0</div>
+                                        <small class="text-muted">AI Sohbet</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% elif current_user.is_advisor() %}
+                            <!-- Advisor Statistics -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-primary mb-0" id="advisedProjects">0</div>
+                                        <small class="text-muted">Danışmanlık</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-success mb-0" id="ownProjects">0</div>
+                                        <small class="text-muted">Kendi Projelerim</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-warning mb-0" id="students">0</div>
+                                        <small class="text-muted">Öğrenciler</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="h2 text-info mb-0" id="feedbacks">0</div>
+                                        <small class="text-muted">Geri Bildirim</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Activity Chart Placeholder -->
+                            <div class="mb-4">
+                                <h5 class="card-title">
+                                    <i class="fas fa-chart-line me-2"></i>Aktivite Grafiği
+                                </h5>
+                                <div class="bg-light rounded p-4 text-center">
+                                    <i class="fas fa-chart-bar text-muted" style="font-size: 3rem;"></i>
+                                    <p class="text-muted mt-2 mb-0">
+                                        Aktivite grafiği yakında eklenecek!
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Recent Activity -->
+                            <div class="mb-4">
+                                <h5 class="card-title">
+                                    <i class="fas fa-history me-2"></i>Son Aktiviteler
+                                </h5>
+                                <div id="recentActivity">
+                                    <p class="text-muted">Aktiviteler yükleniyor...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.avatar {
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: #6c757d;
+}
+
+.nav-tabs .nav-link.active {
+    border-bottom: 2px solid #0d6efd;
+    color: #0d6efd;
+    background: none;
+}
+
+.tab-content {
+    padding-top: 0;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.bg-light {
+    border: 1px solid #e9ecef;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Profile form submission
+document.getElementById('profileForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const profileData = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(profileData)
+        });
+        
+        if (response.ok) {
+            ragAssistant.showToast('Profil bilgileri güncellendi!', 'success');
+        } else {
+            const error = await response.json();
+            ragAssistant.showToast(error.message || 'Güncelleme hatası!', 'error');
+        }
+    } catch (error) {
+        console.error('Profil güncelleme hatası:', error);
+        ragAssistant.showToast('Profil güncellenirken hata oluştu!', 'error');
+    }
+});
+
+// Password form submission
+document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const passwordData = Object.fromEntries(formData.entries());
+    
+    // Confirm password check
+    if (passwordData.new_password !== passwordData.confirm_password) {
+        ragAssistant.showToast('Yeni şifreler eşleşmiyor!', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/profile/password', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(passwordData)
+        });
+        
+        if (response.ok) {
+            ragAssistant.showToast('Şifre başarıyla değiştirildi!', 'success');
+            this.reset();
+        } else {
+            const error = await response.json();
+            ragAssistant.showToast(error.message || 'Şifre değiştirme hatası!', 'error');
+        }
+    } catch (error) {
+        console.error('Şifre değiştirme hatası:', error);
+        ragAssistant.showToast('Şifre değiştirilirken hata oluştu!', 'error');
+    }
+});
+
+// Preferences form submission
+document.getElementById('preferencesForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const preferencesData = Object.fromEntries(formData.entries());
+    
+    // Add checkbox values
+    preferencesData.email_notifications = document.getElementById('emailNotifications').checked;
+    preferencesData.push_notifications = document.getElementById('pushNotifications').checked;
+    preferencesData.chat_notifications = document.getElementById('chatNotifications').checked;
+    
+    try {
+        const response = await fetch('/api/profile/preferences', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(preferencesData)
+        });
+        
+        if (response.ok) {
+            ragAssistant.showToast('Tercihler kaydedildi!', 'success');
+        } else {
+            const error = await response.json();
+            ragAssistant.showToast(error.message || 'Tercih kaydetme hatası!', 'error');
+        }
+    } catch (error) {
+        console.error('Tercih kaydetme hatası:', error);
+        ragAssistant.showToast('Tercihler kaydedilirken hata oluştu!', 'error');
+    }
+});
+
+// Two-factor authentication toggle
+function toggleTwoFactor() {
+    ragAssistant.showToast('İki faktörlü doğrulama özelliği yakında eklenecek!', 'info');
+}
+
+// Load user statistics
+async function loadUserStats() {
+    try {
+        const response = await fetch('/api/profile/stats');
+        if (response.ok) {
+            const stats = await response.json();
+            
+            // Update statistics based on user role
+            {% if current_user.is_student() %}
+            document.getElementById('totalProjects').textContent = stats.total_projects || 0;
+            document.getElementById('completedProjects').textContent = stats.completed_projects || 0;
+            document.getElementById('inProgressProjects').textContent = stats.in_progress_projects || 0;
+            document.getElementById('chatMessages').textContent = stats.chat_messages || 0;
+            {% elif current_user.is_advisor() %}
+            document.getElementById('advisedProjects').textContent = stats.advised_projects || 0;
+            document.getElementById('ownProjects').textContent = stats.own_projects || 0;
+            document.getElementById('students').textContent = stats.students || 0;
+            document.getElementById('feedbacks').textContent = stats.feedbacks || 0;
+            {% endif %}
+        }
+    } catch (error) {
+        console.error('İstatistik yükleme hatası:', error);
+    }
+}
+
+// Load recent activity
+async function loadRecentActivity() {
+    try {
+        const response = await fetch('/api/profile/activity');
+        if (response.ok) {
+            const activities = await response.json();
+            const container = document.getElementById('recentActivity');
+            
+            if (activities.length > 0) {
+                container.innerHTML = activities.map(activity => `
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-${activity.icon} text-muted me-3"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small">${activity.title}</div>
+                            <small class="text-muted">${activity.description}</small>
+                        </div>
+                        <small class="text-muted">${activity.time}</small>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-muted">Henüz aktivite bulunmuyor.</p>';
+            }
+        }
+    } catch (error) {
+        console.error('Aktivite yükleme hatası:', error);
+        document.getElementById('recentActivity').innerHTML = '<p class="text-muted">Aktiviteler yüklenemedi.</p>';
+    }
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    {% if current_user.is_student() or current_user.is_advisor() %}
+    loadUserStats();
+    loadRecentActivity();
+    {% endif %}
+});
+</script>
+{% endblock %}

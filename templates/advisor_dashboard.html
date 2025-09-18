@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}Danışman Dashboard - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-success text-white rounded p-4">
+                <h2 class="mb-1">
+                    <i class="fas fa-user-tie me-2"></i>Hoş geldiniz, {{ current_user.get_full_name() }}!
+                </h2>
+                <p class="mb-0 opacity-75">
+                    Öğrencilerinizi yönlendirin ve projelerini takip edin.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Main Content -->
+        <div class="col-lg-8">
+            <!-- Quick Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-users text-primary fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">{{ advised_projects|length }}</h4>
+                            <small class="text-muted">Danışmanlık Yaptığım</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-project-diagram text-success fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">{{ owned_projects|length }}</h4>
+                            <small class="text-muted">Kendi Projelerim</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-clock text-warning fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">
+                                {{ (advised_projects + owned_projects)|selectattr('status', 'equalto', 'development')|list|length }}
+                            </h4>
+                            <small class="text-muted">Geliştirmede</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center border-0 bg-light">
+                        <div class="card-body">
+                            <i class="fas fa-trophy text-danger fs-2 mb-2"></i>
+                            <h4 class="card-title mb-1">{{ competitions|length }}</h4>
+                            <small class="text-muted">Aktif Yarışma</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <ul class="nav nav-tabs" id="advisorTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="advised-tab" data-bs-toggle="tab" 
+                            data-bs-target="#advised" type="button" role="tab">
+                        <i class="fas fa-user-graduate me-2"></i>Danışmanlık Yaptıklarım ({{ advised_projects|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="owned-tab" data-bs-toggle="tab" 
+                            data-bs-target="#owned" type="button" role="tab">
+                        <i class="fas fa-project-diagram me-2"></i>Kendi Projelerim ({{ owned_projects|length }})
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="advisorTabsContent">
+                <!-- Advised Projects Tab -->
+                <div class="tab-pane fade show active" id="advised" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-body">
+                            {% if advised_projects %}
+                                <div class="row">
+                                    {% for project in advised_projects %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card project-card h-100 border-start border-4 border-success">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        <h6 class="card-title mb-1">{{ project.title }}</h6>
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-user me-1"></i>{{ project.owner.get_full_name() }}
+                                                        </small>
+                                                    </div>
+                                                    <span class="badge bg-{{ 'success' if project.status == 'completed' 
+                                                                else 'warning' if project.status == 'development' 
+                                                                else 'info' if project.status == 'testing' 
+                                                                else 'secondary' }}">
+                                                        {{ project.get_status_display() }}
+                                                    </span>
+                                                </div>
+                                                <p class="card-text text-muted small mb-2">
+                                                    {{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}
+                                                </p>
+                                                <div class="progress mb-2" style="height: 5px;">
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: {{ project.get_progress_percentage() }}%" 
+                                                         aria-valuenow="{{ project.get_progress_percentage() }}" 
+                                                         aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        {{ project.get_progress_percentage() }}% tamamlandı
+                                                    </small>
+                                                    <div>
+                                                        <button class="btn btn-outline-success btn-sm me-1" 
+                                                                onclick="provideFeedback({{ project.id }})">
+                                                            <i class="fas fa-comment me-1"></i>Geri Bildirim
+                                                        </button>
+                                                        <a href="{{ url_for('main.project_detail', project_id=project.id) }}" 
+                                                           class="btn btn-outline-primary btn-sm">
+                                                            <i class="fas fa-eye me-1"></i>Görüntüle
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar me-1"></i>
+                                                        Güncelleme: {{ project.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-user-graduate text-muted" style="font-size: 4rem;"></i>
+                                    <h5 class="mt-3 text-muted">Henüz danışmanlık yaptığınız proje yok</h5>
+                                    <p class="text-muted">Öğrenciler projeleri için sizi danışman olarak seçtiğinde burada görünecek.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Owned Projects Tab -->
+                <div class="tab-pane fade" id="owned" role="tabpanel">
+                    <div class="card border-0 border-top-0">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                            <span></span>
+                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+                                <i class="fas fa-plus me-1"></i>Yeni Proje
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if owned_projects %}
+                                <div class="row">
+                                    {% for project in owned_projects %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card project-card h-100 border-start border-4 border-primary">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="card-title mb-0">{{ project.title }}</h6>
+                                                    <span class="badge bg-{{ 'success' if project.status == 'completed' 
+                                                                else 'warning' if project.status == 'development' 
+                                                                else 'info' if project.status == 'testing' 
+                                                                else 'secondary' }}">
+                                                        {{ project.get_status_display() }}
+                                                    </span>
+                                                </div>
+                                                <p class="card-text text-muted small mb-2">
+                                                    {{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}
+                                                </p>
+                                                <div class="progress mb-2" style="height: 5px;">
+                                                    <div class="progress-bar" role="progressbar" 
+                                                         style="width: {{ project.get_progress_percentage() }}%" 
+                                                         aria-valuenow="{{ project.get_progress_percentage() }}" 
+                                                         aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        {{ project.get_progress_percentage() }}% tamamlandı
+                                                    </small>
+                                                    <div>
+                                                        <a href="{{ url_for('main.project_detail', project_id=project.id) }}" 
+                                                           class="btn btn-outline-primary btn-sm">
+                                                            <i class="fas fa-eye me-1"></i>Görüntüle
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-folder-open text-muted" style="font-size: 4rem;"></i>
+                                    <h5 class="mt-3 text-muted">Henüz proje oluşturmadınız</h5>
+                                    <p class="text-muted">İlk projenizi oluşturarak başlayın!</p>
+                                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+                                        <i class="fas fa-plus me-2"></i>İlk Projenizi Oluşturun
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Sidebar -->
+        <div class="col-lg-4">
+            <!-- AI Assistant Quick Access -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-robot me-2"></i>AI Asistan
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text small">
+                        Öğrencilerinize danışmanlık konusunda AI desteği alın!
+                    </p>
+                    <a href="{{ url_for('main.chat') }}" class="btn btn-success btn-sm w-100">
+                        <i class="fas fa-comments me-2"></i>Sohbete Başla
+                    </a>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Son Aktiviteler
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% set recent_projects = (advised_projects + owned_projects)|sort(attribute='updated_at', reverse=true)[:5] %}
+                        {% if recent_projects %}
+                            {% for project in recent_projects %}
+                            <div class="timeline-item mb-3">
+                                <div class="timeline-marker bg-success"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">{{ project.title }}</h6>
+                                    <p class="text-muted small mb-1">
+                                        {% if project in advised_projects %}
+                                        Danışmanlık - {{ project.owner.get_full_name() }}
+                                        {% else %}
+                                        Kendi projeniz
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">{{ project.updated_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small mb-0">Son aktivite bulunmuyor.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Competitions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>Aktif Yarışmalar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if competitions %}
+                        {% for competition in competitions[:3] %}
+                        <div class="border-bottom pb-2 mb-2">
+                            <h6 class="mb-1">{{ competition.name }}</h6>
+                            <p class="text-muted small mb-1">{{ competition.description[:80] }}...</p>
+                            {% if competition.registration_deadline %}
+                            <small class="text-danger">
+                                <i class="fas fa-clock me-1"></i>Son tarih: {{ competition.registration_deadline.strftime('%d.%m.%Y') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if competitions|length > 3 %}
+                        <small class="text-muted">ve {{ competitions|length - 3 }} yarışma daha...</small>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted small mb-0">Şu anda aktif yarışma bulunmuyor.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Project Modal -->
+<div class="modal fade" id="newProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Yeni Proje Oluştur
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newProjectForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="projectTitle" class="form-label">Proje Başlığı *</label>
+                        <input type="text" class="form-control" id="projectTitle" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectDescription" class="form-label">Açıklama</label>
+                        <textarea class="form-control" id="projectDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectCategory" class="form-label">Kategori</label>
+                        <select class="form-select" id="projectCategory" name="category">
+                            <option value="">Kategori Seçin</option>
+                            <option value="web">Web Geliştirme</option>
+                            <option value="mobile">Mobil Uygulama</option>
+                            <option value="ai">Yapay Zeka</option>
+                            <option value="iot">IoT/Gömülü</option>
+                            <option value="game">Oyun Geliştirme</option>
+                            <option value="other">Diğer</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectCompetition" class="form-label">Yarışma</label>
+                        <select class="form-select" id="projectCompetition" name="competition_id">
+                            <option value="">Yarışma Seçin (İsteğe bağlı)</option>
+                            {% for competition in competitions %}
+                            <option value="{{ competition.id }}">{{ competition.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Projeyi Oluştur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-comment me-2"></i>Geri Bildirim Ver
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="feedbackForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="feedbackText" class="form-label">Geri Bildiriminiz</label>
+                        <textarea class="form-control" id="feedbackText" name="feedback" rows="4" required 
+                                  placeholder="Projenin ilerleme durumu hakkındaki görüşlerinizi paylaşın..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="feedbackRating" class="form-label">Değerlendirme</label>
+                        <select class="form-select" id="feedbackRating" name="rating">
+                            <option value="excellent">Mükemmel</option>
+                            <option value="good">İyi</option>
+                            <option value="average">Orta</option>
+                            <option value="needs_improvement">Geliştirilmeli</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-paper-plane me-2"></i>Gönder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 25px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 15px;
+    bottom: -15px;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.project-card {
+    transition: transform 0.2s;
+}
+
+.project-card:hover {
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentProjectId = null;
+
+function provideFeedback(projectId) {
+    currentProjectId = projectId;
+    new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+}
+
+document.getElementById('newProjectForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const projectData = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await ragAssistant.createProject(projectData);
+        if (response) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Proje oluşturma hatası:', error);
+    }
+});
+
+document.getElementById('feedbackForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!currentProjectId) return;
+    
+    const formData = new FormData(this);
+    const feedbackData = Object.fromEntries(formData.entries());
+    feedbackData.project_id = currentProjectId;
+    
+    try {
+        const response = await fetch('/api/projects/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(feedbackData)
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('feedbackModal')).hide();
+            this.reset();
+            ragAssistant.showToast('Geri bildirim başarıyla gönderildi!', 'success');
+        }
+    } catch (error) {
+        console.error('Geri bildirim gönderme hatası:', error);
+        ragAssistant.showToast('Geri bildirim gönderilirken hata oluştu!', 'error');
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}
